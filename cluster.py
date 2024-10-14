@@ -4,6 +4,8 @@ import numpy as np
 import torch
 from facenet_pytorch import InceptionResnetV1, fixed_image_standardization
 from torchvision.transforms import Resize
+from typing import List, Dict
+from base import extract_crops
 
 
 class FaceCluster:
@@ -132,3 +134,8 @@ class FaceCluster:
             clustered_faces[identity_index] = component
 
         return clustered_faces
+    
+def cluster(clust : FaceCluster, video_path : str, faces : List[tuple]) -> Dict[int,list]:
+    crops = extract_crops(video_path,faces)
+    clustered_faces = clust.cluster_faces(crops)
+    return clustered_faces
