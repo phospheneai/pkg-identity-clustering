@@ -1,3 +1,16 @@
+# *Installation*
+
+Follow the following instructions for installing the identity_cluster package
+
+1. First, download this bashscript from drive: https://drive.google.com/file/d/1Or1ciQ4MeP4W2pnQZyxTmYzdXasKSm9H/view?usp=sharing
+
+2. Create and activate a new environment.
+
+3. open git bash in the proper working directory and run the following command
+
+  ```bash identity_cluster_run.sh```
+
+
 # *Basic Functionalities and Workflows*
 
 The package provides basic functionalities, such as basic video processing and clustering, also the package provides workflows like moving data to s3 and mongodb.
