@@ -2,8 +2,7 @@ facenet-pytorch==2.5.3
 numpy==1.26.4
 opencv-python==4.9.0.80
 pillow==10.2.0
-torch==2.2.1+cu118
-torchaudio==2.2.1+cu118
+torch==2.2.1+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
 torchsummary==1.5.1
 torchvision==0.17.1
 networkx==3.2.1
