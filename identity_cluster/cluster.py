@@ -7,7 +7,6 @@ from torchvision.transforms import Resize
 from typing import List, Dict
 from .base import extract_crops
 
-
 class FaceCluster:
 
     def __init__(self, crops = None, similarity_threshold : int = 0.85,

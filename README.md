@@ -2,7 +2,7 @@
 
 Follow the following instructions for installing the identity_cluster package
 
-1. First, download this bashscript from drive: https://drive.google.com/file/d/1E45sV3owDt8FxH5UruvzNwG0d53tNBiz/view?usp=sharing
+1. First, download this bashscript from drive: https://drive.google.com/file/d/1JlJhwA9fJ6kFoEigPFTsaODg4dO_X02D/view?usp=sharing
 
 2. Create and activate a new environment.
 
