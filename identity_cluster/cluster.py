@@ -5,7 +5,7 @@ import torch
 from facenet_pytorch import InceptionResnetV1, fixed_image_standardization
 from torchvision.transforms import Resize
 from typing import List, Dict
-from base import extract_crops
+from .base import extract_crops
 
 
 class FaceCluster:
