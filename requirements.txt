@@ -3,5 +3,4 @@ numpy==1.26.4
 opencv-python==4.9.0.80
 pillow==10.2.0
 torchsummary==1.5.1
-torchvision==0.17.1
 networkx==3.2.1
