@@ -5,7 +5,9 @@ import os
 import cv2
 import numpy as np
 from PIL import Image
+from typing import List
 from collections import OrderedDict
+from models.models_list import ModelList
 
 
 
@@ -90,7 +92,12 @@ class Inference():
         video_path (str) -> full path to the video
 
         Returns:
-        Tuple(List[int], Dict[int,List[float]], List[PIL.Image.Image], int, Dict[int,List[Tuple(int,PIL.Image.Image,bbox)]]) --> list of frame numbers, faces, bounding boxes
+        Tuple(List[int], Dict[int,List[float]], List[PIL.Image.Image], int, Dict[int,List[Tuple(int,PIL.Image.Image,bbox)]]) --> 
+        List[int] -> list frame numbers
+        Dict[int,List[List[float]]] -> dict of bounding boxes for each identity in each frame
+        List[PIL.Image.Image] -> list of images in order of frame number and identity present in each frame in the dictionary object returned as par of the return statement which is mentioned above
+        int -> fps of the video
+        Dict[int,List[Tuple(int,PIL.Image.Image,bbox)]] -> dict of clustered identities.
         
         '''
         capture = cv2.VideoCapture(video_path)
@@ -119,3 +126,24 @@ class Inference():
 
     def get_clusters(video_path : str | os.PathLike):
         pass
+
+    def inference_models(self, video_path : str | os.PathLike | List[str], model_name : str, model_weights_path : str | os.PathLike):
+        '''
+        Function for inferencing models from deepcheck model zoo for a list of videos
+
+        Args:
+
+            video_path (str | os.PathLike | List[str]) -> full path to the video or list of videos
+            model_name (str) -> name of the deepcheck model
+            model_weights_path (str | os.PathLike) -> full path to the model weights
+        
+        Returns:
+
+        List[Dict[str, Any]] -> list of dictionaries containing prediction results for each video
+        '''
+
+        if not ModelList.get_model(model_name):
+            return "There is no such model"
+        
+        model = ModelList.get_model(model_name)
+        model.load_state_dict(torch.load(model_weights_path, map_location=self.device))
