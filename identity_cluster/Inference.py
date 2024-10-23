@@ -8,7 +8,7 @@ from PIL import Image
 from typing import List
 from collections import OrderedDict
 from models.models_list import ModelList
-
+import time
 
 
 #(batc_size,frame)
@@ -29,6 +29,7 @@ class Inference():
         self.clusterer = FaceCluster()
         self.device = device
         self.shape = shape
+        self.classes = ["Real","Fake"]
 
     def _cvt_to_rgb(self, faces):
         '''
@@ -126,7 +127,25 @@ class Inference():
 
     def get_clusters(video_path : str | os.PathLike):
         pass
-
+    
+    def result(self, model,images, device='cuda', print_time = True):
+        start_time = time.time()
+        images = images.unsqueeze(0).permute(0, 1, 4, 2, 3).to(device)
+        images=images/255.
+        print(images.shape)
+        with torch.no_grad():
+            logits = model(images)
+            predicted_labels = torch.argmax(logits, dim=1)
+            
+            results = {
+                'logits': logits,
+                'predicted_labels': predicted_labels.item()
+            }
+        end_time = time.time()
+        if print_time == True:
+            print(f"Execution time: {end_time - start_time} seconds")
+        
+        return results
     def inference_models(self, video_path : str | os.PathLike | List[str], model_name : str, model_weights_path : str | os.PathLike):
         '''
         Function for inferencing models from deepcheck model zoo for a list of videos
@@ -142,13 +161,14 @@ class Inference():
         List[Dict[str, Any]] -> list of dictionaries containing prediction results for each video
         '''
 
-        if not ModelList.get_model(model_name):
+        if not ModelList.get_model(model_name,model_weights_path, self.device):
             return "There is no such model"
         
-        model = ModelList.get_model(model_name)
-        model.load_state_dict(torch.load(model_weights_path, map_location=self.device))
+        model = ModelList.get_model(model_name, model_weights_path, self.device)
         model.eval()
 
         inp = None
         if isinstance(video_path, str) or isinstance(video_path,os.PathLike):
-            self.generate_video_data(video_path)
+            inp = self.generate_video_data(video_path)
+        res = self.result(model,inp[0])
+        return self.classes[res]
