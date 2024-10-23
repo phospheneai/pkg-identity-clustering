@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
 from torchvision import models
+from abc import abstractmethod, ABC
 
 class ModelList:
 
-    def get_model(name:str):
+    def get_model(name:str, model_path:str, device:str):
         '''
         This function is used to return the model object as per the given name.
 
@@ -16,12 +17,22 @@ class ModelList:
 
             model (nn.Module): The model object corresponding to the given name
         '''
-        if name == 'resnet50':
-            return ResNet50LSTMClassifier()
+        if name == 'resnet50_lstm':
+            model = ResNet50LSTMClassifier()
+            model.load_state_dict(torch.load(model_path))
+            model.to(device)
+            return model
         else:
             return None
+        
+class BaseModel(ABC):
 
-class ResNet50LSTMClassifier(nn.Module):
+    @abstractmethod
+    def get_transform(self):
+        pass
+
+
+class ResNet50LSTMClassifier(nn.Module, BaseModel):
     def __init__(self, num_classes=2, hidden_size=512, num_layers=1, dropout=0.5):
         super(ResNet50LSTMClassifier, self).__init__()
         
@@ -43,6 +54,11 @@ class ResNet50LSTMClassifier(nn.Module):
         
         # Classification head
         self.classifier = nn.Linear(hidden_size, num_classes)
+    
+    def get_transform(self):
+        if self.transform:
+            return self.transform
+        return None
     
     def forward(self, x):
         batch_size, seq_len, c, h, w = x.size()

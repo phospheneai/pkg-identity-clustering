@@ -147,3 +147,8 @@ class Inference():
         
         model = ModelList.get_model(model_name)
         model.load_state_dict(torch.load(model_weights_path, map_location=self.device))
+        model.eval()
+
+        inp = None
+        if isinstance(video_path, str) or isinstance(video_path,os.PathLike):
+            self.generate_video_data(video_path)
