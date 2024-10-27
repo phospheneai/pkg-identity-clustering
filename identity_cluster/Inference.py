@@ -1,5 +1,5 @@
-from cluster import FaceCluster
-from base import detect_faces, extract_crops
+from .cluster import FaceCluster
+from .base import detect_faces, extract_crops
 import torch
 import os
 import cv2
@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 from typing import List
 from collections import OrderedDict
-from models.models_list import ModelList
+from .models.models_list import ModelList
 import time
 import matplotlib.pyplot as plt
 
