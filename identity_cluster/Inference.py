@@ -31,7 +31,10 @@ class Inference():
         self.device = device
         self.shape = shape
         self.classes = ["Real","Fake"]
+        
 
+        #The below cluster variable has to be verified.
+        self._clusters = None
     def __cvt_to_rgb(self, faces):
         '''
         function to convert BGR to RGB
@@ -106,10 +109,66 @@ class Inference():
     def __print_result(self, result : dict, image_data : List[torch.Tensor]):
 
         for i in result:
-            curr = result[i]
+            curr = result[i]["class"]
             print(f"Identity : {curr}")
             self.__plot_images_grid(image_data[i][:5])
 
+    def __create_sequence_dict(self,identity_data):
+        sequence_dict = {}
+
+        for identity_id, identity_info in identity_data.items():
+            for data in identity_info['data']:
+                frame_idx = data[0]
+                face_bboxes = data[-1]
+                # frame_idx, pil,face_bboxes 
+                if frame_idx not in sequence_dict:
+                    sequence_dict[frame_idx] = []
+                
+                # for bbox in face_bboxes:
+                entry = {
+                    "data": face_bboxes,
+                    "class": identity_info["class"],
+                    "confidence":identity_info["confidence"]
+                }
+                sequence_dict[frame_idx].append(entry)
+
+        return sequence_dict
+    def __draw_bounding_boxes(self,video_path : str, sequence_dict, result_video_path : str | os.PathLike) -> str:
+        cap = cv2.VideoCapture(video_path)
+        width = int(cap.get(3))
+        height = int(cap.get(4))
+        fps = int(cap.get(5))
+        output = cv2.VideoWriter(result_video_path, cv2.VideoWriter_fourcc("X", "V", "I", "D"), fps, (width, height))
+
+        frame_index = 0
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            # Check if there are any bounding boxes for the current frame index
+            if frame_index in sequence_dict:
+                for item in sequence_dict[frame_index]:
+                    bbox = item['data']
+                    class_label = item['class']
+                    color = (0,255,0) if class_label=='real'   else (0,0,255) 
+                    confidence = round(item["confidence"]*100,2)
+                        
+                
+                    xmin, ymin, xmax, ymax = map(int, [b*2 for b in bbox])
+
+                    cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
+
+                    cv2.putText(frame, f"{class_label} {confidence}%"  , (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+
+            # Write the processed frame to the output video
+            output.write(frame)
+            frame_index += 1
+
+        output.release()
+        cap.release()
+        print("Video processing complete. Output saved to:", result_video_path)
 
     def generate_video_data(self,video_path):
         '''
@@ -136,6 +195,7 @@ class Inference():
         for idx in list(clusters.keys()):
             
             output.append(self.__cvt_to_rgb(clusters[idx]))
+        self._clusters = clusters
 
         return output, len(clusters.keys())
 
@@ -183,42 +243,7 @@ class Inference():
 
     def get_clusters(video_path : str | os.PathLike):
         pass
-    def draw_bounding_boxes(self,video_path : str, sequence_dict, result_video_path : str | os.PathLike) -> str:
-        cap = cv2.VideoCapture(video_path)
-        width = int(cap.get(3))
-        height = int(cap.get(4))
-        fps = int(cap.get(5))
-        output = cv2.VideoWriter(result_video_path, cv2.VideoWriter_fourcc("X", "V", "I", "D"), fps, (width, height))
 
-        frame_index = 0
-
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            # Check if there are any bounding boxes for the current frame index
-            if frame_index in sequence_dict:
-                for item in sequence_dict[frame_index]:
-                    bbox = item['data']
-                    class_label = item['class']
-                    color = (0,255,0) if class_label=='real'   else (0,0,255) 
-                    confidence = round(item["confidence"]*100,2)
-                        
-                
-                    xmin, ymin, xmax, ymax = map(int, [b*2 for b in bbox])
-
-                    cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
-
-                    cv2.putText(frame, f"{class_label} {confidence}%"  , (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
-
-            # Write the processed frame to the output video
-            output.write(frame)
-            frame_index += 1
-
-        output.release()
-        cap.release()
-        print("Video processing complete. Output saved to:", result_video_path)
     def get_predictions(self, model,images, device='cuda', print_time = True):
         '''
         The function that takes in a model object, a tensor of all identities in the 
@@ -240,7 +265,7 @@ class Inference():
             print(f"Execution time: {end_time - start_time} seconds")
         
         return results
-    def inference_models(self, video_path : str | os.PathLike | List[str], model_name : str, model_weights_path : str | os.PathLike):
+    def inference_models(self, video_path : str | os.PathLike | List[str], model_name : str, model_weights_path : str | os.PathLike, save_result_vid : bool = False, save_path : str | None = None):
         '''
         Function for inferencing models from deepcheck model zoo for a list of videos
 
@@ -266,9 +291,16 @@ class Inference():
         if isinstance(video_path, str) or isinstance(video_path,os.PathLike):
             inp, identities = self.generate_video_data(video_path)
         if inp and identities:
-            res = {
-            }
+            res = {}
             for i in range(identities):
-                res[i] = self.classes[self.get_predictions(model,inp[i])["predicted_labels"]]
+                preds = self.get_predictions(model,inp[i])
+                res[i] = {}
+                res[i]["class"] = self.classes[preds["predicted_labels"]]
+                res[i]["confidence"] = torch.max(preds["logits"]).cpu().item()
+                res[i]["data"] = self._clusters[i]
+                print(self._clusters)
             self.__print_result(res,inp)
+            if save_result_vid:
+                seq_dict = self.__create_sequence_dict(res)
+                self.__draw_bounding_boxes(video_path,seq_dict,save_path)
             return res
