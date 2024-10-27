@@ -9,6 +9,7 @@ from typing import List
 from collections import OrderedDict
 from models.models_list import ModelList
 import time
+import matplotlib.pyplot as plt
 
 
 #(batc_size,frame)
@@ -31,7 +32,7 @@ class Inference():
         self.shape = shape
         self.classes = ["Real","Fake"]
 
-    def _cvt_to_rgb(self, faces):
+    def __cvt_to_rgb(self, faces):
         '''
         function to convert BGR to RGB
 
@@ -49,11 +50,66 @@ class Inference():
         '''
         out = []
         for i in faces:
-            print(i[1])
             img = cv2.resize(np.array(i[1]),self.shape)
             out.append(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
         out = torch.Tensor(out)
         return out
+    def __plot_images_grid(self,tensor, images_per_row=4):
+        """
+        Plots a grid of images from a 4D tensor.
+        
+        Args:
+            tensor (torch.Tensor): A 4D tensor of shape (N, H, W, C), (N, C, H, W), or similar.
+            images_per_row (int): Number of images per row in the grid.
+        """
+        # Check tensor dimensions and permute if necessary
+        if tensor.dim() == 4:
+            if tensor.size(1) in [1, 3] and tensor.size(2) > 1 and tensor.size(3) > 1:  # (N, C, H, W)
+                images_np = tensor.permute(0, 2, 3, 1).numpy()  # Convert to (N, H, W, C)
+            elif tensor.size(3) in [1, 3] and tensor.size(1) > 1 and tensor.size(2) > 1:  # (N, H, W, C)
+                images_np = tensor.numpy()  # Already in (N, H, W, C)
+            else:
+                raise ValueError("Tensor dimensions do not match expected shapes for images.")
+        else:
+            raise ValueError("The input tensor must be 4D with shape (N, C, H, W) or (N, H, W, C).")
+
+        # Normalize images if necessary (assuming images are in the range [0, 1] or [0, 255])
+        if images_np.max() > 1.0:  # If max value is greater than 1, assume range is [0, 255]
+            images_np = images_np / 255.0
+
+        # Handle grayscale images by converting them to RGB
+        if images_np.shape[-1] == 1:
+            images_np = np.repeat(images_np, 3, axis=-1)  # Convert single channel to 3 channels
+
+        num_images = images_np.shape[0]
+        num_rows = (num_images + images_per_row - 1) // images_per_row  # Calculate number of rows needed
+
+        # Create a figure and axes
+        fig, axes = plt.subplots(num_rows, images_per_row, figsize=(images_per_row * 2, num_rows * 2))
+        
+        # Flatten the axes array for easy indexing
+        axes = axes.flatten()
+
+        # Plot each image
+        for i in range(num_images):
+            ax = axes[i]
+            ax.imshow(images_np[i])
+            ax.axis('off')  # Hide axis
+
+        # Hide any unused subplots
+        for j in range(num_images, len(axes)):
+            axes[j].axis('off')
+
+        plt.tight_layout()
+        plt.show()
+
+    def __print_result(self, result : dict, image_data : List[torch.Tensor]):
+
+        for i in result:
+            curr = result[i]
+            print(f"Identity : {curr}")
+            self.__plot_images_grid(image_data[i][:5])
+
 
     def generate_video_data(self,video_path):
         '''
@@ -79,9 +135,9 @@ class Inference():
         output = []
         for idx in list(clusters.keys()):
             
-            output.append(self._cvt_to_rgb(clusters[idx]))
+            output.append(self.__cvt_to_rgb(clusters[idx]))
 
-        return output
+        return output, len(clusters.keys())
 
 
     def get_data(self, video_path):
@@ -127,8 +183,46 @@ class Inference():
 
     def get_clusters(video_path : str | os.PathLike):
         pass
-    
-    def result(self, model,images, device='cuda', print_time = True):
+    def draw_bounding_boxes(self,video_path : str, sequence_dict, result_video_path : str | os.PathLike) -> str:
+        cap = cv2.VideoCapture(video_path)
+        width = int(cap.get(3))
+        height = int(cap.get(4))
+        fps = int(cap.get(5))
+        output = cv2.VideoWriter(result_video_path, cv2.VideoWriter_fourcc("X", "V", "I", "D"), fps, (width, height))
+
+        frame_index = 0
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            # Check if there are any bounding boxes for the current frame index
+            if frame_index in sequence_dict:
+                for item in sequence_dict[frame_index]:
+                    bbox = item['data']
+                    class_label = item['class']
+                    color = (0,255,0) if class_label=='real'   else (0,0,255) 
+                    confidence = round(item["confidence"]*100,2)
+                        
+                
+                    xmin, ymin, xmax, ymax = map(int, [b*2 for b in bbox])
+
+                    cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
+
+                    cv2.putText(frame, f"{class_label} {confidence}%"  , (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+
+            # Write the processed frame to the output video
+            output.write(frame)
+            frame_index += 1
+
+        output.release()
+        cap.release()
+        print("Video processing complete. Output saved to:", result_video_path)
+    def get_predictions(self, model,images, device='cuda', print_time = True):
+        '''
+        The function that takes in a model object, a tensor of all identities in the 
+        '''
         start_time = time.time()
         images = images.unsqueeze(0).permute(0, 1, 4, 2, 3).to(device)
         images=images/255.
@@ -168,7 +262,13 @@ class Inference():
         model.eval()
 
         inp = None
+        identities = None
         if isinstance(video_path, str) or isinstance(video_path,os.PathLike):
-            inp = self.generate_video_data(video_path)
-        res = self.result(model,inp[0])
-        return self.classes[res]
+            inp, identities = self.generate_video_data(video_path)
+        if inp and identities:
+            res = {
+            }
+            for i in range(identities):
+                res[i] = self.classes[self.get_predictions(model,inp[i])["predicted_labels"]]
+            self.__print_result(res,inp)
+            return res
