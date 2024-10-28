@@ -277,7 +277,7 @@ class Inference():
         
         Returns:
 
-        List[Dict[str, Any]] -> list of dictionaries containing prediction results for each video
+            Dict[int,Dict[str, Any]] -> list of dictionaries containing prediction results for each identity in the video video
         '''
 
         if not ModelList.get_model(model_name,model_weights_path, self.device):
@@ -304,3 +304,4 @@ class Inference():
                 seq_dict = self.__create_sequence_dict(res)
                 self.__draw_bounding_boxes(video_path,seq_dict,save_path)
             return res
+        return {}
