@@ -10,6 +10,8 @@ from collections import OrderedDict
 from .models.models_list import ModelList
 import time
 import matplotlib.pyplot as plt
+import functools
+import inspect
 
 
 #(batc_size,frame)
@@ -19,7 +21,7 @@ class Inference():
     Class for Inferencing videos based on given model.
 
     '''
-    def __init__(self, device : str, shape = (224,224)):
+    def __init__(self, device : str, shape = (224,224)) -> None:
         '''
         Constructor for the inference class
         
@@ -31,11 +33,45 @@ class Inference():
         self.device = device
         self.shape = shape
         self.classes = ["Real","Fake"]
+
+        self.timings = {}
         
 
         #The below cluster variable has to be verified.
         self._clusters = None
-    def __cvt_to_rgb(self, faces):
+
+    def timeit(func):
+        """Decorator to time function calls and record nested relationships."""
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            start_time = time.time()
+            result = func(self, *args, **kwargs)
+            end_time = time.time()
+            
+            # Calculate time taken
+            time_taken = end_time - start_time
+            
+            # Get the current and caller function names
+            current_func_name = func.__name__
+            caller_func_name = inspect.stack()[1].function
+            
+            # Determine if the function is nested or top-level
+            if caller_func_name == '__call__':
+                # Top-level call
+                self.timings[current_func_name] = time_taken
+            else:
+                # Nested call, represent the hierarchy
+                call_key = f"{caller_func_name} --calls--> {current_func_name}"
+                self.timings[call_key] = time_taken
+            
+            # Print timing to console (optional)
+            print(f"{call_key if 'call_key' in locals() else current_func_name}: {time_taken:.4f} seconds")
+            
+            return result
+        return wrapper
+    
+    @timeit
+    def __cvt_to_rgb(self, faces : tuple) -> torch.Tensor:
         '''
         function to convert BGR to RGB
 
@@ -57,7 +93,9 @@ class Inference():
             out.append(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
         out = torch.Tensor(out)
         return out
-    def __plot_images_grid(self,tensor, images_per_row=4):
+    
+    @timeit
+    def __plot_images_grid(self,tensor : torch.Tensor, images_per_row : int = 4) -> None:
         """
         Plots a grid of images from a 4D tensor.
         
@@ -113,6 +151,19 @@ class Inference():
             print(f"Identity : {curr}")
             self.__plot_images_grid(image_data[i][:5])
 
+    def __print_timings(self, timings : dict) -> None:
+
+        '''
+        Function to print timing information
+        '''
+
+        print(f"Timings for {timings['function_name']}")
+        print("\n")
+        for key, value in timings.items():
+            if key!="function_name":
+                print(f"{key}: {value} seconds")
+                
+    @timeit
     def __create_sequence_dict(self,identity_data):
         sequence_dict = {}
 
@@ -133,6 +184,8 @@ class Inference():
                 sequence_dict[frame_idx].append(entry)
 
         return sequence_dict
+    
+    @timeit
     def __draw_bounding_boxes(self,video_path : str, sequence_dict, result_video_path : str | os.PathLike) -> str:
         cap = cv2.VideoCapture(video_path)
         width = int(cap.get(3))
@@ -170,7 +223,7 @@ class Inference():
         cap.release()
         print("Video processing complete. Output saved to:", result_video_path)
 
-    def generate_video_data(self,video_path):
+    def generate_video_data(self,video_path, print_timings = True):
         '''
         function to generate list of identities for given videos
 
@@ -181,26 +234,46 @@ class Inference():
             List[List[Tensor(No.of.frames,height,width,channel)]] -> list of identities
         '''
 
+        timings = {"function_name": "generate_video_data"}
         if not os.path.exists(video_path):
             return []
-
+        t1 = time.time()
         faces, fps = detect_faces(video_path, self.device)
+        t2 = time.time()
 
+        timings["time for face detection"] = t2-t1
         del fps
 
+        t1 = time.time()
         crops = extract_crops(video_path,faces)
-        clusters = self.clusterer.cluster_faces(crops)
+        t2 = time.time()
 
+        timings["time for face cropping"] = t2-t1
+
+        t1 = time.time()
+        clusters = self.clusterer.cluster_faces(crops)
+        t2 = time.time()
+
+        timings["time for face clustering"] = t2-t1
         output = []
+
+        t1 = time.time()
         for idx in list(clusters.keys()):
             
             output.append(self.__cvt_to_rgb(clusters[idx]))
+
+        t2 = time.time()
+
+        timings["time for subprocess -> to convert to RBG"] = t2-t1
         self._clusters = clusters
+
+        if print_timings:
+            self.__print_timings(timings)
 
         return output, len(clusters.keys())
 
-
-    def get_data(self, video_path):
+    
+    def get_data(self, video_path, print_timings=True):
         '''
         Returns a list of important video information
 
@@ -235,23 +308,41 @@ class Inference():
             frame = frame.resize(size=[s // 2 for s in frame.size])
             frames[i] = frame
 
-        faces , fps = detect_faces(video_path,self.device)
+        timings = {"function_name": "get_data"}
+        t1 = time.time()
+        faces, fps = detect_faces(video_path, self.device)
+        t2 = time.time()
+
+        timings["time for face detection"] = t2-t1
+        del fps
+
+        t1 = time.time()
         crops = extract_crops(video_path,faces)
+        t2 = time.time()
+
+        timings["time for face cropping"] = t2-t1
+
+        t1 = time.time()
         clusters = self.clusterer.cluster_faces(crops)
+        t2 = time.time()
+
+        timings["time for face clustering"] = t2-t1
+
+        if print_timings:
+            self.__print_timings(timings)
         return list(frames.keys()), faces, list(frames.values()), fps, clusters
 
 
     def get_clusters(video_path : str | os.PathLike):
         pass
-
-    def get_predictions(self, model,images, device='cuda', print_time = True):
+    
+    @timeit
+    def get_predictions(self, model,images, device='cuda'):
         '''
         The function that takes in a model object, a tensor of all identities in the 
         '''
-        start_time = time.time()
         images = images.unsqueeze(0).permute(0, 1, 4, 2, 3).to(device)
         images=images/255.
-        print(images.shape)
         with torch.no_grad():
             logits = model(images)
             predicted_labels = torch.argmax(logits, dim=1)
@@ -260,12 +351,11 @@ class Inference():
                 'logits': logits,
                 'predicted_labels': predicted_labels.item()
             }
-        end_time = time.time()
-        if print_time == True:
-            print(f"Execution time: {end_time - start_time} seconds")
+
         
         return results
-    def inference_models(self, video_path : str | os.PathLike | List[str], model_name : str, model_weights_path : str | os.PathLike, save_result_vid : bool = False, save_path : str | None = None):
+    @timeit
+    def inference_models(self, video_path : str | os.PathLike | List[str], model_name : str, model_weights_path : str | os.PathLike, save_result_vid : bool = False, save_path : str | None = None, print_timings : bool = False):
         '''
         Function for inferencing models from deepcheck model zoo for a list of videos
 
@@ -274,10 +364,13 @@ class Inference():
             video_path (str | os.PathLike | List[str]) -> full path to the video or list of videos
             model_name (str) -> name of the deepcheck model
             model_weights_path (str | os.PathLike) -> full path to the model weights
+            save_result_vid (bool) -> whether to save the result video
+            save_path (str | None) -> path to save the result video
+            print_timings (bool) -> whether to print timings
         
         Returns:
 
-        List[Dict[str, Any]] -> list of dictionaries containing prediction results for each video
+            Dict[int,Dict[str, Any]] -> list of dictionaries containing prediction results for each identity in the video video
         '''
 
         if not ModelList.get_model(model_name,model_weights_path, self.device):
@@ -289,7 +382,7 @@ class Inference():
         inp = None
         identities = None
         if isinstance(video_path, str) or isinstance(video_path,os.PathLike):
-            inp, identities = self.generate_video_data(video_path)
+            inp, identities = self.generate_video_data(video_path, print_timings=print_timings)
         if inp and identities:
             res = {}
             for i in range(identities):
@@ -298,9 +391,9 @@ class Inference():
                 res[i]["class"] = self.classes[preds["predicted_labels"]]
                 res[i]["confidence"] = torch.max(preds["logits"]).cpu().item()
                 res[i]["data"] = self._clusters[i]
-                print(self._clusters)
             self.__print_result(res,inp)
             if save_result_vid:
                 seq_dict = self.__create_sequence_dict(res)
                 self.__draw_bounding_boxes(video_path,seq_dict,save_path)
             return res
+        return {}
