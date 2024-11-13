@@ -134,7 +134,7 @@ class FaceCluster:
 
         return clustered_faces
     
-def cluster(clust : FaceCluster, video_path : str, faces : List[tuple]) -> Dict[int,list]:
-    crops = extract_crops(video_path,faces)
+def cluster(clust : FaceCluster, video_path : str, faces : List[tuple], pad_constant : int | tuple |None = 3) -> Dict[int,list]:
+    crops = extract_crops(video_path,faces, pad_constant)
     clustered_faces = clust.cluster_faces(crops)
     return clustered_faces
