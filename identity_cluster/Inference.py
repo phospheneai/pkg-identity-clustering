@@ -223,12 +223,16 @@ class Inference():
         cap.release()
         print("Video processing complete. Output saved to:", result_video_path)
 
-    def generate_video_data(self,video_path, print_timings = True):
+    def generate_video_data(self,video_path, print_timings = True, padding_constant = 3):
         '''
         function to generate list of identities for given videos
 
-        Args: 
+        Args:
+
             video_path (str) -> full path to the video
+            print_timings (bool) -> whether to print timing information
+            padding_constant (int) -> padding constant for controlling face-background ratio
+
         Returns :
 
             List[List[Tensor(No.of.frames,height,width,channel)]] -> list of identities
@@ -245,7 +249,7 @@ class Inference():
         del fps
 
         t1 = time.time()
-        crops = extract_crops(video_path,faces)
+        crops = extract_crops(video_path,faces, padding_constant)
         t2 = time.time()
 
         timings["time for face cropping"] = t2-t1
@@ -273,13 +277,15 @@ class Inference():
         return output, len(clusters.keys())
 
     
-    def get_data(self, video_path, print_timings=True):
+    def get_data(self, video_path, print_timings=True, padding_constant = 3):
         '''
         Returns a list of important video information
 
         Args:
 
         video_path (str) -> full path to the video
+        print_timings (bool) -> whether to print timing information
+        padding_constant (int) -> padding constant for controlling face-background ratio
 
         Returns:
         Tuple(List[int], Dict[int,List[float]], List[PIL.Image.Image], int, Dict[int,List[Tuple(int,PIL.Image.Image,bbox)]]) --> 
@@ -317,7 +323,7 @@ class Inference():
         del fps
 
         t1 = time.time()
-        crops = extract_crops(video_path,faces)
+        crops = extract_crops(video_path,faces,padding_constant)
         t2 = time.time()
 
         timings["time for face cropping"] = t2-t1
@@ -355,7 +361,7 @@ class Inference():
         
         return results
     @timeit
-    def inference_models(self, video_path : str | os.PathLike | List[str], model_name : str, model_weights_path : str | os.PathLike, save_result_vid : bool = False, save_path : str | None = None, print_timings : bool = False):
+    def inference_models(self, video_path : str | os.PathLike | List[str], model_name : str, model_weights_path : str | os.PathLike, save_result_vid : bool = False, save_path : str | None = None, print_timings : bool = False, padding_constant : int | tuple  = 3):
         '''
         Function for inferencing models from deepcheck model zoo for a list of videos
 
@@ -367,6 +373,7 @@ class Inference():
             save_result_vid (bool) -> whether to save the result video
             save_path (str | None) -> path to save the result video
             print_timings (bool) -> whether to print timings
+            padding_constant (int | tuple) -> padding constant for video
         
         Returns:
 
@@ -382,7 +389,7 @@ class Inference():
         inp = None
         identities = None
         if isinstance(video_path, str) or isinstance(video_path,os.PathLike):
-            inp, identities = self.generate_video_data(video_path, print_timings=print_timings)
+            inp, identities = self.generate_video_data(video_path, print_timings=print_timings, padding_constant=padding_constant)
         if inp and identities:
             res = {}
             for i in range(identities):
