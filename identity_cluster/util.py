@@ -5,6 +5,21 @@ import numpy as np
 import json  
 import cv2
 from PIL import Image
+from .base import _get_crop
+
+def detect_probable_fakes(mask_frame, bbox, threshold = 0.50):
+    mask = _get_crop(mask_frame,bbox, pad_constant=4)
+    tot = mask.shape[0] * mask.shape[1]
+    blob = np.sum(mask)
+    if blob == 0.:
+        return "Real"
+    
+    fake_prob = blob/tot
+    if fake_prob >= threshold:
+        return "Fake"
+    else:
+        return "Real"
+    
 def get_video_config(clustered_faces : Dict[int,list], identity : int, identity_dir : str | os.PathLike, mask_frames : List[np.ndarray] = None)->Dict[str,object]:
     config = {}
     config["ID"] = identity
