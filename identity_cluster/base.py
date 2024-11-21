@@ -165,77 +165,117 @@ def _get_frames(video_path):
         frames.append(frame)
     return frames
 
-def _get_crop(frame, bbox, pad_constant : int | tuple):
+def _get_crop(frame, bbox, pad_constant: int | tuple):
     '''
-        This function takes a frame and a bbox and then outputs the region of the image given by the bounding box
-        Args : 
-        - frame : np.ndarray -> image frame containing the faces to be cropped.
-        - bbox : list -> the bounding box associated with that frame.
-        - pad_constant : int -> The constant to control the padding. Default is None.
-        - use_pad_constant : bool -> If True, uses the pad_constant to control the padding. Default is False.
+    This function takes a frame and a bounding box and outputs the region of the image
+    given by the bounding box with padding applied to all four sides.
+    
+    Args: 
+        - frame (np.ndarray): The image frame containing the faces to be cropped.
+        - bbox (list): The bounding box (xmin, ymin, xmax, ymax) for cropping.
+        - pad_constant (int | tuple): The constant to control the padding.
+          If an integer is provided, the same padding is applied in all directions.
+          If a tuple (pad_w, pad_h) is provided, different padding is applied to width and height.
 
-        Returns :
-
-        - crop : np.ndarray -> the cropped output of the faces.
+    Returns:
+        - crop (np.ndarray): The cropped face region from the frame with padding.
     '''
+
+    # Extract bounding box coordinates
     xmin, ymin, xmax, ymax = [int(b * 2) for b in bbox]
     w = xmax - xmin
     h = ymax - ymin
 
-    # Add some padding to catch background too
-    '''
-                          [[B,B,B,B,B,B],
-    [[F,F,F,F],            [B,F,F,F,F,B],
-     [F,F,F,F],    --->    [B,F,F,F,F,B],
-     [F,F,F,F]]            [B,F,F,F,F,B],
-                           [B,B,B,B,B,B]]
-
-            F -> Represents pixels with the Face.
-            B -> Represents the Background.
-            padding allows us to include some background around the face.
-            (padding constant 3 here causes some issue with some videos)
-    '''
-    p_w = 0
-    p_h = 0
-    if type(pad_constant) == int:
-        p_h = h // pad_constant
-        p_w = w // pad_constant
-    elif type(pad_constant) == float:
-        p_h = h // pad_constant[0]
-        p_w = w // pad_constant[1]
-
-    
-    crop_h = (ymax + p_h) - max(ymin - p_h, 0)
-    crop_w = (xmax + p_w) - max(xmin - p_w, 0)
-
-    # Make the image square
-    '''
-    Makes the crop equal on all sides by adjusting the pad
-    '''
-    if crop_h > crop_w:
-        p_h -= int(((crop_h - crop_w)/2))
+    # Handle padding logic
+    if isinstance(pad_constant, int):
+        p_w = p_h = pad_constant
+    elif isinstance(pad_constant, tuple) and len(pad_constant) == 2:
+        p_w, p_h = pad_constant
     else:
-        p_w -= int(((crop_w - crop_h)/2))
+        raise ValueError("pad_constant should be either an int or a tuple of two values.")
 
-    # Extract the face from the frame
-    crop = frame[max(ymin - p_h, 0):ymax + p_h, max(xmin - p_w, 0):xmax + p_w]
-    
-    # Check if out of bound and correct
-    h, w = crop.shape[:2]
-    if h > w:
-        diff = int((h - w)/2)
-        if diff > 0:         
-            crop = crop[diff:-diff,:]
-        else:
-            crop = crop[1:,:]
-    elif h < w:
-        diff = int((w - h)/2)
-        if diff > 0:
-            crop = crop[:,diff:-diff]
-        else:
-            crop = crop[:,:-1]
+    # Define padded crop area
+    crop_ymin = max(ymin - p_h, 0)  # Ensure it doesn't go below 0
+    crop_xmin = max(xmin - p_w, 0)  # Ensure it doesn't go left of 0
+    crop_ymax = min(ymax + p_h, frame.shape[0])  # Ensure it doesn't go beyond image height
+    crop_xmax = min(xmax + p_w, frame.shape[1])  # Ensure it doesn't go beyond image width
+
+    # Extract the cropped region from the frame
+    crop = frame[crop_ymin:crop_ymax, crop_xmin:crop_xmax]
 
     return crop
+
+# def _get_crop(frame, bbox, pad_constant : int | tuple):
+#     '''
+#         This function takes a frame and a bbox and then outputs the region of the image given by the bounding box
+#         Args : 
+#         - frame : np.ndarray -> image frame containing the faces to be cropped.
+#         - bbox : list -> the bounding box associated with that frame.
+#         - pad_constant : int -> The constant to control the padding. Default is None.
+#         - use_pad_constant : bool -> If True, uses the pad_constant to control the padding. Default is False.
+
+#         Returns :
+
+#         - crop : np.ndarray -> the cropped output of the faces.
+#     '''
+#     xmin, ymin, xmax, ymax = [int(b * 2) for b in bbox]
+#     w = xmax - xmin
+#     h = ymax - ymin
+
+#     # Add some padding to catch background too
+#     '''
+#                           [[B,B,B,B,B,B],
+#     [[F,F,F,F],            [B,F,F,F,F,B],
+#      [F,F,F,F],    --->    [B,F,F,F,F,B],
+#      [F,F,F,F]]            [B,F,F,F,F,B],
+#                            [B,B,B,B,B,B]]
+
+#             F -> Represents pixels with the Face.
+#             B -> Represents the Background.
+#             padding allows us to include some background around the face.
+#             (padding constant 3 here causes some issue with some videos)
+#     '''
+#     p_w = 0
+#     p_h = 0
+#     if type(pad_constant) == int:
+#         p_h = h // pad_constant
+#         p_w = w // pad_constant
+#     elif type(pad_constant) == float:
+#         p_h = h // pad_constant[0]
+#         p_w = w // pad_constant[1]
+
+    
+#     crop_h = (ymax + p_h) - max(ymin - p_h, 0)
+#     crop_w = (xmax + p_w) - max(xmin - p_w, 0)
+
+#     # Make the image square
+#     '''
+#     Makes the crop equal on all sides by adjusting the pad
+#     '''
+#     if crop_h > crop_w:
+#         p_h -= int(((crop_h - crop_w)/2))
+#     else:
+#         p_w -= int(((crop_w - crop_h)/2))
+
+#     # Extract the face from the frame
+#     crop = frame[max(ymin - p_h, 0):ymax + p_h, max(xmin - p_w, 0):xmax + p_w]
+    
+#     # Check if out of bound and correct
+#     h, w = crop.shape[:2]
+#     if h > w:
+#         diff = int((h - w)/2)
+#         if diff > 0:         
+#             crop = crop[diff:-diff,:]
+#         else:
+#             crop = crop[1:,:]
+#     elif h < w:
+#         diff = int((w - h)/2)
+#         if diff > 0:
+#             crop = crop[:,diff:-diff]
+#         else:
+#             crop = crop[:,:-1]
+
+#     return crop
 
 def extract_crops(video_path, bboxes_dict, pad_constant : int | tuple = 3):
     '''
