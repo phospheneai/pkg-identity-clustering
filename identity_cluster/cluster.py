@@ -102,7 +102,7 @@ class FaceCluster:
             self._set_crops(crops)
 
     # Convert crops to PIL images
-        crops_images = [row[1] for row in self.crops]
+        crops_images = [row[3] for row in self.crops]
         
         # Extract the embeddings
         embeddings_extractor = InceptionResnetV1(pretrained='vggface2').eval().to(self.device)

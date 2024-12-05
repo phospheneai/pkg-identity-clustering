@@ -309,8 +309,9 @@ def extract_crops(video_path, bboxes_dict, pad_constant : int | tuple = 3):
             continue
         for bbox in bboxes:
             crop = _get_crop(frame, bbox,pad_constant)
+            fram = _get_crop(frame, bbox, 0)
             
             # Add the extracted face to the list
-            crops.append((i, Image.fromarray(crop), bbox))
+            crops.append((i, Image.fromarray(crop), bbox,Image.fromarray(fram)))
 
     return crops
