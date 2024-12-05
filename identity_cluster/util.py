@@ -24,13 +24,13 @@ def get_video_config(clustered_faces : Dict[int,list], identity : int, identity_
     config = {}
     config["ID"] = identity
     config["path"] = identity_dir
-    config["class"] = "" 
+    config["class"] = "unassinged" 
     
     
     bboxes = []
     box = {}
     for frame, cropped_face, bbox in clustered_faces[identity]:
-        if not config["class"]:
+        if mask_frames and not config["class"]:
             config["class"] = detect_probable_fakes(mask_frames[frame],bbox) # type: ignore
         face_path = os.path.join(identity_dir,f"{frame}.jpg")
         image_cv = cv2.cvtColor(np.array(cropped_face), cv2.COLOR_BGR2RGB)
