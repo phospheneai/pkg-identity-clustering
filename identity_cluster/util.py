@@ -36,6 +36,7 @@ def get_video_config(clustered_faces : Dict[int,list], identity : int, identity_
             config["class"] = detect_probable_fakes(mask_frames[frame],bbox) # type: ignore
         face_path = os.path.join(identity_dir,f"{frame}.jpg")
         image_cv = cv2.cvtColor(np.array(cropped_face), cv2.COLOR_BGR2RGB)
+        exact_crop = cv2.cvtColor(np.array(exact_crop), cv2.COLOR_BGR2RGB)
         cropped_face = Image.fromarray(image_cv)
         exact_crop_face_path = os.path.join(exact_crop_dir,f"{frame}.jpg")
         exact_crop = Image.fromarray(exact_crop)
