@@ -41,7 +41,6 @@ def get_video_config(clustered_faces : Dict[int,list], identity : int, identity_
         exact_crop = Image.fromarray(exact_crop)
         cropped_face.save(face_path)
         exact_crop.save(exact_crop_face_path)
-        exact_crop.save()
         box[frame] = bbox
         with open(os.path.join(identity_dir,f"{frame}.json"),"w") as f:
             json.dump({frame : bbox},f)
