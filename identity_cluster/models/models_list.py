@@ -17,13 +17,8 @@ class ModelList:
 
             model (nn.Module): The model object corresponding to the given name
         '''
-        if name == 'resnet50_lstm_num_layer2':
-            model = ResNet50LSTMClassifier(num_layers=2)
-            model.load_state_dict(torch.load(model_path))
-            model.to(device)
-            return model
-        if name == 'resnet50_lstm_num_layer1':
-            model = ResNet50LSTMClassifier(num_layers=1)
+        if name == 'resnet50_lstm':
+            model = ResNet50LSTMClassifier()
             model.load_state_dict(torch.load(model_path))
             model.to(device)
             return model
@@ -37,8 +32,8 @@ class BaseModel(ABC):
         pass
 
 
-class ResNet50LSTMClassifier(nn.Module):
-    def __init__(self, num_classes=1,hidden_size=512, num_layers=2, dropout=0.5):
+class ResNet50LSTMClassifier(nn.Module, BaseModel):
+    def __init__(self, num_classes=2, hidden_size=512, num_layers=1, dropout=0.5):
         super(ResNet50LSTMClassifier, self).__init__()
         
         # Load pre-trained ResNet-50 model
@@ -60,7 +55,12 @@ class ResNet50LSTMClassifier(nn.Module):
         # Classification head
         self.classifier = nn.Linear(hidden_size, num_classes)
     
-    def forward(self, x,hidden=None):
+    def get_transform(self):
+        if self.transform:
+            return self.transform
+        return None
+    
+    def forward(self, x):
         batch_size, seq_len, c, h, w = x.size()
         
         # Reshape input for ResNet-50
@@ -75,18 +75,12 @@ class ResNet50LSTMClassifier(nn.Module):
         features = self.fc(features)  # (batch_size, seq_len, hidden_size)
         
         # Pass through LSTM
-        lstm_out, hidden = self.lstm(features,hidden)  # (batch_size, seq_len, hidden_size)
+        lstm_out, _ = self.lstm(features)  # (batch_size, seq_len, hidden_size)
         
         # Use the output from the final timestep for classification
         lstm_out = lstm_out[:, -1, :]  # (batch_size, hidden_size)
         
         # Classification
-        out = self.classifier(lstm_out)  # (batch_size, 1)
+        out = self.classifier(lstm_out)  # (batch_size, num_classes)
         
-        return out,hidden 
-
-    def init_hidden(self, batch_size, device):
-        # Initialize hidden states (h0, c0) for LSTM
-        h0 = torch.zeros(self.lstm.num_layers, batch_size, self.lstm.hidden_size).to(device)
-        c0 = torch.zeros(self.lstm.num_layers, batch_size, self.lstm.hidden_size).to(device)
-        return (h0, c0)
+        return out
