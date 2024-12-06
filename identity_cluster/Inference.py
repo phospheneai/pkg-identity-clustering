@@ -12,7 +12,7 @@ import time
 import matplotlib.pyplot as plt
 import functools
 import inspect
-from torch import sigmoid
+
 
 #(batc_size,frame)
 class Inference():
@@ -350,13 +350,12 @@ class Inference():
         images = images.unsqueeze(0).permute(0, 1, 4, 2, 3).to(device)
         images=images/255.
         with torch.no_grad():
-            logits,_ = model(images)
-            sig_logits = sigmoid(logits)
-            predicted_labels = 0 if sig_logits.item() < 0.5 else 1
+            logits = model(images)
+            predicted_labels = torch.argmax(logits, dim=1)
             
             results = {
-                'logits': sig_logits,
-                'predicted_labels': predicted_labels
+                'logits': logits,
+                'predicted_labels': predicted_labels.item()
             }
 
         
@@ -397,7 +396,7 @@ class Inference():
                 preds = self.get_predictions(model,inp[i])
                 res[i] = {}
                 res[i]["class"] = self.classes[preds["predicted_labels"]]
-                res[i]["confidence"] = preds["logits"].cpu().item()
+                res[i]["confidence"] = torch.max(preds["logits"]).cpu().item()
                 res[i]["data"] = self._clusters[i]
             self.__print_result(res,inp)
             if save_result_vid:
