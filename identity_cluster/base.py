@@ -136,12 +136,12 @@ def detect_faces(video_path, device):
         bboxes.update({i : b for i, b in zip(indices, detector._detect_faces(frames))})
         found_faces = False
         for key in list(bboxes.keys()):
-            if type(bboxes[key]) == list:
+            if isinstance(bboxes[key],list):
                 found_faces = True
                 break
 
         if not found_faces:
-            raise Exception("No faces found.")
+            return None, indices[-1]
     return bboxes,fps
 
 def _get_frames(video_path):
@@ -277,7 +277,7 @@ def _get_crop(frame, bbox, pad_constant: int | tuple):
 
 #     return crop
 
-def extract_crops(video_path, bboxes_dict, pad_constant : int | tuple = 3):
+def extract_crops(video_path, bboxes_dict, pad_constant : int | tuple = 50):
     '''
     function that uses the above two function to extract faces and from individual frames
 
@@ -309,8 +309,9 @@ def extract_crops(video_path, bboxes_dict, pad_constant : int | tuple = 3):
             continue
         for bbox in bboxes:
             crop = _get_crop(frame, bbox,pad_constant)
+            fram = _get_crop(frame, bbox, 0)
             
             # Add the extracted face to the list
-            crops.append((i, Image.fromarray(crop), bbox))
+            crops.append((i, Image.fromarray(crop), bbox,Image.fromarray(fram)))
 
     return crops
