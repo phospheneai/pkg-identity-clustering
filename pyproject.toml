@@ -2,7 +2,7 @@
 name = "identity-cluster"
 version = "0.1.0"
 description = ""
-authors = ["Sanjith Kumar R <sanjithkumar986@gmail.com>"]
+authors = ["Sanjith Kumar R <sanjith.kumar@phospheneai.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
