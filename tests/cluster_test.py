@@ -5,7 +5,10 @@ from PIL import Image
 import numpy as np
 import torch
 from identity_cluster.cluster import cluster, FaceCluster
-from identity_cluster.base import extract_crops
+from identity_cluster.base import extract_crops, detect_faces
+import os
+
+VIDEOS_DIR = os.path.join(os.path.dirname(__file__),"sample_videos")
 
 @pytest.fixture
 def mock_video_path():
@@ -21,7 +24,18 @@ def mock_faces():
     }
 
 
-
+@pytest.fixture
+def sample_flow_videos():
+    """Fixture for providing 7 videos for testing"""
+    return [
+        os.path.join(VIDEOS_DIR,"simran.mp4"),
+        os.path.join(VIDEOS_DIR,"test_00000000.mp4"),
+        os.path.join(VIDEOS_DIR,"test_00000011.mp4"),
+        os.path.join(VIDEOS_DIR,"test_00000131.mp4"),
+        os.path.join(VIDEOS_DIR,"test_00000121.mp4"),
+        os.path.join(VIDEOS_DIR,"test_00000214.mp4"),
+        os.path.join(VIDEOS_DIR,"test_00001395.mp4")
+                ]   
 
 @pytest.fixture
 def mock_face_cluster():
@@ -86,3 +100,24 @@ def test_cluster(mock_video_path, mock_faces, mock_face_cluster, mock_extract_cr
     # Assert the mock function calls
     mock_face_cluster.cluster_faces.assert_called()
     mock_extract_crops.assert_called_with(mock_video_path, mock_faces, 3)
+
+
+def flow_test(sample_flow_video):
+
+    """
+    Validate the correctness of the clustering process.
+    """
+    validation_identities = [3, 2, 2, 1, 2, 2, 1]
+    for identities, video_path in zip(validation_identities,sample_flow_video):
+
+        # Create a FaceCluster object
+        cluster_instance = FaceCluster()
+
+        faces,fps = detect_faces(video_path,"cuda")
+
+        clustered_faces = cluster(cluster_instance, video_path, faces)
+
+        assert identities == len(clustered_faces), f"The number of identities must match, the number of identities predicted is {len(clustered_faces)} the number of identities is {identities} for video {video_path}"
+
+
+
