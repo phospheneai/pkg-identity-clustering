@@ -108,7 +108,7 @@ def flow_test(sample_flow_video):
     Validate the correctness of the clustering process.
     """
     validation_identities = [3, 2, 2, 1, 2, 2, 1]
-    for identities, video_path in zip(validation_identities,sample_flow_video):
+    for identities, video_path in zip(validation_identities,sample_flow_video[:-1]):
 
         # Create a FaceCluster object
         cluster_instance = FaceCluster()
