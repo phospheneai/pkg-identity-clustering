@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "identity-cluster"
+version = "0.1.0"
+description = ""
+authors = ["Sanjith Kumar R <sanjith.kumar@phospheneai.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+networkx = "3.2.1"
+pillow = "10.2.0"
+opencv-python = "4.9.0.80"
+numpy = "1.26.4"
+torch = {version = "2.4.1", source = "pytorch"}
+torchvision = {version = "0.19.1", source = "pytorch"}
+torchsummary = "1.5.1"
+facenet-pytorch = "2.5.3"
+
+
+[[tool.poetry.source]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu118"
+priority = "explicit"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
