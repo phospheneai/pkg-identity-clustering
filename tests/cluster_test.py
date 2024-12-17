@@ -111,9 +111,9 @@ def flow_test(sample_flow_video):
     for identities, video_path in zip(validation_identities,sample_flow_video[:-1]):
 
         # Create a FaceCluster object
-        cluster_instance = FaceCluster()
+        cluster_instance = FaceCluster(device="cpu")
 
-        faces,fps = detect_faces(video_path,"cuda")
+        faces,fps = detect_faces(video_path,"cpu")
 
         clustered_faces = cluster(cluster_instance, video_path, faces)
 

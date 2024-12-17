@@ -162,7 +162,7 @@ def test_flow(sample_flow_videos):
     """
     for video_path in sample_flow_videos:
         # Detect faces
-        faces, fps = detect_faces(video_path, "cuda")
+        faces, fps = detect_faces(video_path, "cpu")
 
         # Validate faces
         assert isinstance(faces, dict), f"Expected faces to be a dict, got {type(faces)}"
